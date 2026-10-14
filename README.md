@@ -227,10 +227,11 @@ npm run client:build
 ### UI Features & Routes
 
 - **`/` — Marketing Landing Page**: Hero section, architecture overview, core capabilities, and technical stack.
+- **`/builder` — Smart Policy Builder (Flagship Feature)**: Translate natural English statements (e.g. *"Allow user123 to read wallet-789 transactions, but deny delete access"*) into fine-grained permission rules with automatic clause splitting, ambiguity detection & clarification prompts, rule preview, direct SQLite persistence, and 1-click live testing.
 - **`/login` & `/signup` — Authentication**: Clean login & registration flows with Auth0 Universal Login integration and development sandbox mode.
-- **`/dashboard` — Security Overview**: Real-time evaluation metrics, requests-over-time traffic chart, ALLOW vs DENY distribution, and recent decisions table.
+- **`/dashboard` — Security Overview**: Real-time evaluation metrics, requests-over-time traffic chart, ALLOW vs DENY distribution, recent decisions table, and live SQLite rule counters.
 - **`/playground` — Interactive API Playground**: Test live `POST /authorize` calls directly against the backend with token masking, preset scenarios, latency measurement, and JSON output viewer.
-- **`/permissions` — Policy Management**: Rules table for SQLite permissions, wildcard and specificity logic help panel, and rule staging modal.
+- **`/permissions` — Policy Management**: Real-time SQLite permissions viewer, live Add Rule and Delete Rule operations with direct DB synchronization, plus wildcard/specificity reference panel.
 - **`/users` — Client & User Directory**: Directory of authenticated principals with details drawer and active policy count.
 - **`/logs` — Security Audit Logs**: Chronological log of authorization requests with filters for decision and method, search, and CSV export.
 - **`/docs` — Interactive API Documentation**: Complete endpoint reference, method-to-action mappings, wildcard semantics, and error codes.
@@ -239,6 +240,69 @@ npm run client:build
 ---
 
 ## API Reference
+
+### `POST /policies/parse`
+
+Natural language policy parser. Converts English statements into structured permission rules with ambiguity detection.
+
+```json
+// Request
+{
+  "statement": "Allow user123 to read wallet-789 transactions, but deny delete access.",
+  "default_user_id": "user123" // optional
+}
+
+// Response (200 OK)
+{
+  "statement": "Allow user123 to read wallet-789 transactions, but deny delete access.",
+  "success": true,
+  "rules": [
+    {
+      "user_id": "user123",
+      "action": "read",
+      "resource": "wallets/wallet-789/transactions",
+      "effect": "allow",
+      "explanation": "ALLOW READ on \"wallets/wallet-789/transactions\" for user123"
+    },
+    {
+      "user_id": "user123",
+      "action": "delete",
+      "resource": "wallets/wallet-789/transactions",
+      "effect": "deny",
+      "explanation": "DENY DELETE on \"wallets/wallet-789/transactions\" for user123"
+    }
+  ],
+  "ambiguities": [],
+  "confidence": 0.98
+}
+```
+
+### `GET /permissions`
+
+Retrieve permission rules currently stored in SQLite. Optional `?userId=<id>` query parameter.
+
+### `POST /permissions`
+
+Commit one or more permission rules directly into SQLite (`user_permissions` table).
+
+```json
+{
+  "rules": [
+    {
+      "user_id": "user123",
+      "action": "read",
+      "resource": "wallets/wallet-789/transactions",
+      "effect": "allow"
+    }
+  ]
+}
+```
+
+### `DELETE /permissions/:id`
+
+Delete a permission rule by primary key ID from the SQLite database.
+
+---
 
 ### `POST /authorize`
 

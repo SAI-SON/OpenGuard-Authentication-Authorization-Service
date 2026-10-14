@@ -43,10 +43,13 @@ if (!domain || !audience || !issuer) {
   throw new Error("Missing Auth0 environment variables");
 }
 
+import { PolicyParserService } from "./services/policy-parser.service.js";
+
 // Initialize SQLite database & authorization services
 const db = initializeDatabase(dbPath);
 const permissionRepo = new PermissionRepository(db);
 const authorizationService = new AuthorizationService(permissionRepo);
+const policyParserService = new PolicyParserService();
 
 const jwtCheck = auth({
   audience,
@@ -56,6 +59,91 @@ const jwtCheck = auth({
 
 app.get("/authorized", jwtCheck, (_req, res) => {
   res.send("Secured Resource");
+});
+
+// Natural Language Smart Policy Parser
+app.post(["/policies/parse", "/api/policies/parse"], (req, res) => {
+  try {
+    const { statement, default_user_id } = req.body || {};
+    if (typeof statement !== "string") {
+      return res.status(400).json({ error: "Missing or invalid statement parameter" });
+    }
+    const result = policyParserService.parse(statement, default_user_id);
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// List all permissions from SQLite
+app.get(["/permissions", "/api/permissions"], (req, res) => {
+  try {
+    const userId = req.query.userId as string | undefined;
+    const permissions = userId
+      ? permissionRepo.findAllByUser(userId)
+      : permissionRepo.findAll();
+    return res.json({ permissions, total: permissions.length });
+  } catch (error) {
+    return res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Insert one or multiple permissions into SQLite
+app.post(["/permissions", "/api/permissions"], (req, res) => {
+  try {
+    const body = req.body;
+    const rulesToInsert = Array.isArray(body?.rules)
+      ? body.rules
+      : body?.user_id
+      ? [body]
+      : [];
+
+    if (rulesToInsert.length === 0) {
+      return res.status(400).json({ error: "No valid permission rules provided" });
+    }
+
+    const inserted: number[] = [];
+    for (const rule of rulesToInsert) {
+      const { user_id, action, resource, effect } = rule || {};
+      if (!user_id || !action || !resource || !effect) {
+        return res.status(400).json({ error: "Missing required fields: user_id, action, resource, effect" });
+      }
+      if (!["read", "write", "delete"].includes(action)) {
+        return res.status(400).json({ error: `Invalid action: ${action}` });
+      }
+      if (!["allow", "deny"].includes(effect)) {
+        return res.status(400).json({ error: `Invalid effect: ${effect}` });
+      }
+
+      const id = permissionRepo.insert(user_id, action, resource, effect);
+      inserted.push(id);
+    }
+
+    return res.status(201).json({
+      success: true,
+      count: inserted.length,
+      inserted_ids: inserted,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// Delete a permission by ID from SQLite
+app.delete(["/permissions/:id", "/api/permissions/:id"], (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id || Number.isNaN(id)) {
+      return res.status(400).json({ error: "Invalid permission ID" });
+    }
+    const deleted = permissionRepo.deleteById(id);
+    if (!deleted) {
+      return res.status(404).json({ error: "Permission not found" });
+    }
+    return res.json({ success: true, deleted_id: id });
+  } catch (error) {
+    return res.status(500).json({ error: (error as Error).message });
+  }
 });
 
 app.post(["/authorize", "/api/authorize"], async (req, res) => {

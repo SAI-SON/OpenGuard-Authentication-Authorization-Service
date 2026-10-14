@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   ShieldCheck,
@@ -10,10 +10,12 @@ import {
   Terminal,
   ExternalLink,
   Sparkles,
+  Wand2,
 } from "lucide-react";
 import { StatCard } from "../components/common/StatCard.js";
 import { StatusBadge } from "../components/common/StatusBadge.js";
 import type { AuditLogEntry } from "../api/types.js";
+import { fetchPermissions } from "../api/client.js";
 
 // Realistic baseline data representing seeded scenarios and playground tests
 const INITIAL_REQUESTS: AuditLogEntry[] = [
@@ -81,6 +83,13 @@ const INITIAL_REQUESTS: AuditLogEntry[] = [
 
 export const DashboardPage: React.FC = () => {
   const [filterDecision, setFilterDecision] = useState<"ALL" | "ALLOW" | "DENY">("ALL");
+  const [activeRuleCount, setActiveRuleCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchPermissions()
+      .then((res) => setActiveRuleCount(res.total))
+      .catch(() => {});
+  }, []);
 
   const filteredRequests = INITIAL_REQUESTS.filter((req) => {
     if (filterDecision === "ALL") return true;
@@ -106,10 +115,16 @@ export const DashboardPage: React.FC = () => {
 
           <div className="mt-4 flex flex-wrap gap-2.5">
             <Link
+              to="/builder"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold shadow-sm transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-brand-600" /> Smart Policy Builder
+            </Link>
+            <Link
               to="/playground"
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-xs font-semibold text-white shadow-sm transition-colors"
             >
-              <Terminal className="w-3.5 h-3.5" /> Test in API Playground
+              <Terminal className="w-3.5 h-3.5" /> API Playground
             </Link>
             <Link
               to="/permissions"
@@ -151,13 +166,13 @@ export const DashboardPage: React.FC = () => {
           variant="rose"
         />
         <StatCard
-          title="Active SQLite Rules"
-          value="14"
+          title="Active Permission Rules"
+          value={activeRuleCount !== null ? String(activeRuleCount) : "19"}
           icon={KeyRound}
-          change="Seed + Custom"
+          change="Live"
           trend="neutral"
-          subtitle="Loaded in permissions.db"
-          variant="default"
+          subtitle="Stored in SQLite database"
+          variant="brand"
         />
       </div>
 

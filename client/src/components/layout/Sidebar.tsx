@@ -11,6 +11,7 @@ import {
   Settings,
   X,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -21,9 +22,10 @@ interface SidebarProps {
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { to: "/builder", label: "Smart Policy Builder", icon: Sparkles, badge: "NLP / AI" },
   { to: "/playground", label: "API Playground", icon: Terminal, badge: "Live" },
-  { to: "/logs", label: "Authorization Logs", icon: FileText },
   { to: "/permissions", label: "Permissions", icon: KeyRound },
+  { to: "/logs", label: "Authorization Logs", icon: FileText },
   { to: "/users", label: "Users", icon: Users },
   { to: "/docs", label: "API Documentation", icon: BookOpen },
   { to: "/settings", label: "Settings", icon: Settings },

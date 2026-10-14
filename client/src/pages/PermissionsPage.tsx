@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   KeyRound,
   Plus,
@@ -11,136 +12,27 @@ import {
   X,
   Database,
   Trash2,
+  Sparkles,
+  ArrowRight,
+  RefreshCw,
 } from "lucide-react";
 import { StatusBadge } from "../components/common/StatusBadge.js";
 import { FormField } from "../components/common/FormField.js";
 import { ConfirmDialog } from "../components/common/ConfirmDialog.js";
 import type { PermissionRule } from "../api/types.js";
-
-// Active permissions mirroring data/permissions.db seed and test rules
-const INITIAL_RULES: PermissionRule[] = [
-  {
-    id: "perm_01",
-    user_id: "user123",
-    action: "read",
-    resource: "transactions",
-    effect: "allow",
-    is_demo: false,
-  },
-  {
-    id: "perm_02",
-    user_id: "user123",
-    action: "write",
-    resource: "transactions",
-    effect: "allow",
-    is_demo: false,
-  },
-  {
-    id: "perm_03",
-    user_id: "user123",
-    action: "delete",
-    resource: "transactions",
-    effect: "deny",
-    is_demo: false,
-  },
-  {
-    id: "perm_04",
-    user_id: "user123",
-    action: "read",
-    resource: "accounts",
-    effect: "allow",
-    is_demo: false,
-  },
-  {
-    id: "perm_05",
-    user_id: "user456",
-    action: "read",
-    resource: "wallets/*",
-    effect: "allow",
-    is_demo: false,
-  },
-  {
-    id: "perm_06",
-    user_id: "user456",
-    action: "write",
-    resource: "wallets/wallet-789",
-    effect: "allow",
-    is_demo: false,
-  },
-  {
-    id: "perm_07",
-    user_id: "user456",
-    action: "read",
-    resource: "wallets/wallet-789/transactions",
-    effect: "allow",
-    is_demo: false,
-  },
-  {
-    id: "perm_08",
-    user_id: "user789",
-    action: "write",
-    resource: "wallets/*/transactions",
-    effect: "allow",
-    is_demo: false,
-  },
-  {
-    id: "perm_09",
-    user_id: "user789",
-    action: "write",
-    resource: "wallets/*/transactions/*",
-    effect: "allow",
-    is_demo: false,
-  },
-  {
-    id: "perm_10",
-    user_id: "admin789",
-    action: "*",
-    resource: "*",
-    effect: "allow",
-    is_demo: false,
-  },
-  {
-    id: "perm_11",
-    user_id: "Q1OcYhR9hod5OSSrrxDCYIJfKmIzYSaf@clients",
-    action: "read",
-    resource: "wallets/wallet-789/transactions",
-    effect: "allow",
-    is_demo: false,
-  },
-  {
-    id: "perm_12",
-    user_id: "Q1OcYhR9hod5OSSrrxDCYIJfKmIzYSaf@clients",
-    action: "delete",
-    resource: "wallets/wallet-789/transactions",
-    effect: "deny",
-    is_demo: false,
-  },
-  {
-    id: "perm_13",
-    user_id: "Q1OcYhR9hod5OSSrrxDCYIJfKmIzYSaf@clients",
-    action: "read",
-    resource: "wallets/*",
-    effect: "allow",
-    is_demo: false,
-  },
-  {
-    id: "perm_14",
-    user_id: "Q1OcYhR9hod5OSSrrxDCYIJfKmIzYSaf@clients",
-    action: "read",
-    resource: "wallets/wallet-789",
-    effect: "deny",
-    is_demo: false,
-  },
-];
+import { fetchPermissions, createPermissions, deletePermission } from "../api/client.js";
 
 export const PermissionsPage: React.FC = () => {
-  const [rules, setRules] = useState<PermissionRule[]>(INITIAL_RULES);
+  const [rules, setRules] = useState<PermissionRule[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [actionFilter, setActionFilter] = useState<string>("ALL");
   const [effectFilter, setEffectFilter] = useState<string>("ALL");
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newUserId, setNewUserId] = useState("");
   const [newAction, setNewAction] = useState<"read" | "write" | "delete">("read");
   const [newResource, setNewResource] = useState("");
@@ -148,6 +40,23 @@ export const PermissionsPage: React.FC = () => {
 
   // Delete dialog state
   const [deleteTarget, setDeleteTarget] = useState<PermissionRule | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const loadRules = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetchPermissions();
+      setRules(res.permissions);
+    } catch {
+      // Keep existing rules on fetch error
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRules();
+  }, []);
 
   const filteredRules = rules.filter((r) => {
     const matchesSearch =
@@ -158,37 +67,94 @@ export const PermissionsPage: React.FC = () => {
     return matchesSearch && matchesAction && matchesEffect;
   });
 
-  const handleAddRule = (e: React.FormEvent) => {
+  const handleAddRule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserId.trim() || !newResource.trim()) {
       alert("Please enter a user ID and a resource string.");
       return;
     }
 
-    const created: PermissionRule = {
-      id: `perm_staged_${Date.now()}`,
-      user_id: newUserId.trim(),
-      action: newAction,
-      resource: newResource.trim().replace(/^\/+/, ""),
-      effect: newEffect,
-      is_demo: true,
-    };
-
-    setRules([created, ...rules]);
-    setIsModalOpen(false);
-    setNewUserId("");
-    setNewResource("");
+    setIsSubmitting(true);
+    setFeedback(null);
+    try {
+      await createPermissions([
+        {
+          user_id: newUserId.trim(),
+          action: newAction,
+          resource: newResource.trim().replace(/^\/+/, ""),
+          effect: newEffect,
+        },
+      ]);
+      setFeedback({
+        type: "success",
+        message: "Permission rule successfully committed to SQLite database!",
+      });
+      setIsModalOpen(false);
+      setNewUserId("");
+      setNewResource("");
+      await loadRules();
+    } catch (err: any) {
+      setFeedback({
+        type: "error",
+        message: err.message || "Failed to commit permission rule.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const confirmDelete = () => {
-    if (deleteTarget) {
-      setRules(rules.filter((r) => r.id !== deleteTarget.id));
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    setFeedback(null);
+    try {
+      if (deleteTarget.id) {
+        await deletePermission(deleteTarget.id);
+      }
+      setFeedback({
+        type: "success",
+        message: `Rule for '${deleteTarget.resource}' deleted from SQLite database.`,
+      });
       setDeleteTarget(null);
+      await loadRules();
+    } catch (err: any) {
+      setFeedback({
+        type: "error",
+        message: err.message || "Failed to delete permission rule.",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   return (
     <div className="space-y-6">
+      {/* Smart Policy Builder Highlight Banner */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 text-white shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
+            <Sparkles className="w-6 h-6 text-amber-300" />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm tracking-tight text-white flex items-center gap-2">
+              Smart Policy Builder
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400 text-slate-900 uppercase">
+                Featured
+              </span>
+            </h3>
+            <p className="text-xs text-white/90 mt-0.5">
+              Type plain English: <span className="font-mono text-amber-200">"Allow user123 to read wallet-789 transactions, but deny delete access."</span>
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/builder"
+          className="px-4 py-2 rounded-xl bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold transition-all shadow-sm shrink-0 flex items-center gap-1.5 self-start sm:self-auto"
+        >
+          Open Policy Builder <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -196,27 +162,55 @@ export const PermissionsPage: React.FC = () => {
             Permission Rules
           </h1>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Define fine-grained access policies evaluated by the SQLite authorization engine.
+            Fine-grained access policies evaluated in real-time by the SQLite authorization engine ({rules.length} active rules).
           </p>
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm shadow-brand-500/25 transition-colors self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" /> Add Permission Rule
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={loadRules}
+            disabled={isLoading}
+            className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors"
+            title="Reload from SQLite"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-sm shadow-brand-500/25 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Add Rule
+          </button>
+        </div>
       </div>
+
+      {/* Notifications */}
+      {feedback && (
+        <div
+          className={`p-3.5 rounded-xl border flex items-center gap-2.5 text-xs font-medium ${
+            feedback.type === "success"
+              ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+              : "bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800"
+          }`}
+        >
+          {feedback.type === "success" ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          ) : (
+            <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+          )}
+          <span>{feedback.message}</span>
+        </div>
+      )}
 
       {/* Backend API Note */}
       <div className="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-start gap-3 text-xs text-slate-600 dark:text-slate-400">
         <Database className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="font-semibold text-slate-800 dark:text-slate-200">
-            SQLite Database View:
+            Live SQLite Database Sync:
           </p>
           <p className="text-[11px] leading-relaxed">
-            The table below reflects the live rules loaded in <code className="font-mono text-brand-600 dark:text-brand-400">data/permissions.db</code>. Permanent additions can also be seeded via <code className="font-mono text-slate-700 dark:text-slate-300">npm run db:seed</code>.
+            The table below reflects live rules queried from <code className="font-mono text-brand-600 dark:text-brand-400">data/permissions.db</code>. Additions and deletions made here are written to SQLite immediately.
           </p>
         </div>
       </div>

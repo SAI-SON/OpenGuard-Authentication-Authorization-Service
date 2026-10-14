@@ -9,6 +9,7 @@ import { LandingPage } from "./pages/LandingPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { SignupPage } from "./pages/SignupPage.js";
 import { DashboardPage } from "./pages/DashboardPage.js";
+import { PolicyBuilderPage } from "./pages/PolicyBuilderPage.js";
 import { PlaygroundPage } from "./pages/PlaygroundPage.js";
 import { PermissionsPage } from "./pages/PermissionsPage.js";
 import { UsersPage } from "./pages/UsersPage.js";
@@ -31,6 +32,7 @@ export const App: React.FC = () => {
             {/* Authenticated / Console Pages (wrapped in DashboardLayout) */}
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/builder" element={<PolicyBuilderPage />} />
               <Route path="/playground" element={<PlaygroundPage />} />
               <Route path="/permissions" element={<PermissionsPage />} />
               <Route path="/users" element={<UsersPage />} />

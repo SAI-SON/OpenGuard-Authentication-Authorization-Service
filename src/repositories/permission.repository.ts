@@ -57,6 +57,30 @@ export class PermissionRepository {
   }
 
   /**
+   * Retrieve all permissions across all users.
+   */
+  findAll(): Permission[] {
+    const stmt = this.db.prepare(`
+      SELECT id, user_id, action, resource, effect
+      FROM   user_permissions
+      ORDER BY id DESC
+    `);
+    return stmt.all() as unknown as Permission[];
+  }
+
+  /**
+   * Delete a single permission by its primary key ID.
+   */
+  deleteById(id: number): boolean {
+    const stmt = this.db.prepare(`
+      DELETE FROM user_permissions
+      WHERE id = ?
+    `);
+    const result = stmt.run(id);
+    return Number(result.changes) > 0;
+  }
+
+  /**
    * Delete all records (used in tests to reset state between cases).
    */
   deleteAll(): void {

@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Terminal,
   Send,
@@ -21,10 +22,26 @@ import { LoadingSpinner } from "../components/common/LoadingSpinner.js";
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
 export const PlaygroundPage: React.FC = () => {
+  const location = useLocation();
+  const navState = location.state as {
+    presetPath?: string;
+    presetMethod?: HttpMethod;
+    presetUserId?: string;
+  } | null;
+
   const [token, setToken] = useState("");
   const [showToken, setShowToken] = useState(false);
-  const [method, setMethod] = useState<HttpMethod>("GET");
-  const [path, setPath] = useState("/wallets/wallet-789/transactions");
+  const [method, setMethod] = useState<HttpMethod>(navState?.presetMethod || "GET");
+  const [path, setPath] = useState(navState?.presetPath || "/wallets/wallet-789/transactions");
+
+  useEffect(() => {
+    if (navState?.presetPath) {
+      setPath(navState.presetPath);
+    }
+    if (navState?.presetMethod) {
+      setMethod(navState.presetMethod);
+    }
+  }, [navState]);
 
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<AuthorizationResponse | null>(null);

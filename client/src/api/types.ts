@@ -62,3 +62,26 @@ export interface UserSummary {
   status: "active" | "suspended";
   last_active?: string;
 }
+
+export interface ParsedRule {
+  user_id: string;
+  action: "read" | "write" | "delete";
+  resource: string;
+  effect: "allow" | "deny";
+  explanation: string;
+}
+
+export interface AmbiguityIssue {
+  field: "user_id" | "action" | "resource" | "effect";
+  message: string;
+  suggestions?: string[];
+}
+
+export interface PolicyParseResult {
+  statement: string;
+  success: boolean;
+  rules: ParsedRule[];
+  ambiguities: AmbiguityIssue[];
+  confidence: number;
+}
+

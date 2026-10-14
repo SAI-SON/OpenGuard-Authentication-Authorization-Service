@@ -81,3 +81,91 @@ export async function fetchHealth(): Promise<HealthResponse> {
     return { status: "error" };
   }
 }
+
+/**
+ * Natural language policy parsing via backend parser engine.
+ */
+export async function parsePolicy(
+  statement: string,
+  defaultUserId?: string
+): Promise<import("./types.js").PolicyParseResult> {
+  const response = await fetch(`${API_BASE}/policies/parse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ statement, default_user_id: defaultUserId }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, err, err.error || "Failed to parse policy");
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch all permissions stored in SQLite.
+ */
+export async function fetchPermissions(
+  userId?: string
+): Promise<{ permissions: import("./types.js").PermissionRule[]; total: number }> {
+  const url = userId
+    ? `${API_BASE}/permissions?userId=${encodeURIComponent(userId)}`
+    : `${API_BASE}/permissions`;
+
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, err, err.error || "Failed to fetch permissions");
+  }
+
+  return response.json();
+}
+
+/**
+ * Save one or multiple permission rules into SQLite.
+ */
+export async function createPermissions(
+  rules: Array<{
+    user_id: string;
+    action: "read" | "write" | "delete";
+    resource: string;
+    effect: "allow" | "deny";
+  }>
+): Promise<{ success: boolean; count: number; inserted_ids: number[] }> {
+  const response = await fetch(`${API_BASE}/permissions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rules }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, err, err.error || "Failed to create permissions");
+  }
+
+  return response.json();
+}
+
+/**
+ * Delete a permission rule from SQLite by ID.
+ */
+export async function deletePermission(
+  id: number | string
+): Promise<{ success: boolean; deleted_id: number }> {
+  const response = await fetch(`${API_BASE}/permissions/${id}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, err, err.error || "Failed to delete permission");
+  }
+
+  return response.json();
+}
+
