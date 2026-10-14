@@ -7,7 +7,30 @@ import { AuthorizationService } from "./services/authorization.service.js";
 import type { HttpMethod } from "./types/authorization.js";
 
 const app = express();
+
+// Enable CORS for frontend web application
+app.use((_req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type,Authorization");
+  if (_req.method === "OPTIONS") {
+    res.sendStatus(200);
+    return;
+  }
+  next();
+});
+
 app.use(express.json());
+
+// Health check endpoint
+app.get(["/health", "/api/health"], (_req, res) => {
+  res.json({
+    status: "ok",
+    service: "OpenGuard Authentication & Authorization Service",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
 
 const port = Number(process.env.PORT) || 8080;
 
@@ -35,7 +58,7 @@ app.get("/authorized", jwtCheck, (_req, res) => {
   res.send("Secured Resource");
 });
 
-app.post("/authorize", async (req, res) => {
+app.post(["/authorize", "/api/authorize"], async (req, res) => {
   try {
     const { access_token, method, path } = req.body || {};
 

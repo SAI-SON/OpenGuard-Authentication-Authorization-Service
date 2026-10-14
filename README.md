@@ -203,6 +203,41 @@ The server starts at `http://localhost:8080` (or the `PORT` in your `.env.local`
 
 ---
 
+## Frontend Web Application (OpenGuard UI)
+
+A modern, responsive, developer-friendly web application built with **React**, **TypeScript**, **Vite**, and **Tailwind CSS**.
+
+### Running the Frontend
+
+```powershell
+# In a new terminal tab:
+npm run client:dev
+```
+
+The frontend will start at **`http://localhost:5173`**.
+
+Vite automatically proxies all `/api/*` requests to the backend server on `http://localhost:8080`, allowing real-time interactive testing without CORS issues.
+
+### Production Build
+
+```powershell
+npm run client:build
+```
+
+### UI Features & Routes
+
+- **`/` — Marketing Landing Page**: Hero section, architecture overview, core capabilities, and technical stack.
+- **`/login` & `/signup` — Authentication**: Clean login & registration flows with Auth0 Universal Login integration and development sandbox mode.
+- **`/dashboard` — Security Overview**: Real-time evaluation metrics, requests-over-time traffic chart, ALLOW vs DENY distribution, and recent decisions table.
+- **`/playground` — Interactive API Playground**: Test live `POST /authorize` calls directly against the backend with token masking, preset scenarios, latency measurement, and JSON output viewer.
+- **`/permissions` — Policy Management**: Rules table for SQLite permissions, wildcard and specificity logic help panel, and rule staging modal.
+- **`/users` — Client & User Directory**: Directory of authenticated principals with details drawer and active policy count.
+- **`/logs` — Security Audit Logs**: Chronological log of authorization requests with filters for decision and method, search, and CSV export.
+- **`/docs` — Interactive API Documentation**: Complete endpoint reference, method-to-action mappings, wildcard semantics, and error codes.
+- **`/settings` — System Settings**: Backend connectivity status check, Auth0 JWKS configuration, and light/dark appearance preferences.
+
+---
+
 ## API Reference
 
 ### `POST /authorize`
